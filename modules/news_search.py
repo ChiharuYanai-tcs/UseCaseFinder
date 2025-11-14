@@ -52,23 +52,54 @@ class NewsSearchModule:
         print(f"ニュース検索中: {keyword}")
         
         articles = []
+        keyword_lower = keyword.lower()
         
         # RSSフィードから取得
         for feed_url in self.tech_rss_feeds:
             try:
                 feed = feedparser.parse(feed_url)
-                for entry in feed.entries[:config.max_news_results]:
-                    if keyword.lower() in entry.get('title', '').lower() or \
-                       keyword.lower() in entry.get('summary', '').lower():
-                        articles.append({
-                            'title': entry.get('title', 'N/A'),
-                            'summary': entry.get('summary', 'N/A')[:300],
-                            'url': entry.get('link', ''),
-                            'published': entry.get('published', 'N/A'),
-                            'source': feed_url
-                        })
+                # まず全てのエントリを取得し、関連度でスコアリング
+                scored_entries = []
+                for entry in feed.entries:
+                    title = entry.get('title', '').lower()
+                    summary = entry.get('summary', '').lower()
+                    
+                    # 関連度スコア計算
+                    score = 0
+                    if keyword_lower in title:
+                        score += 10
+                    if keyword_lower in summary:
+                        score += 5
+                    
+                    # キーワードの部分一致もチェック
+                    words = keyword_lower.split()
+                    for word in words:
+                        if len(word) > 2:  # 短すぎる単語は除外
+                            if word in title:
+                                score += 3
+                            if word in summary:
+                                score += 1
+                    
+                    if score > 0:
+                        scored_entries.append((score, entry))
+                
+                # スコアでソートして上位を取得
+                scored_entries.sort(reverse=True, key=lambda x: x[0])
+                
+                for score, entry in scored_entries[:config.max_news_results]:
+                    articles.append({
+                        'title': entry.get('title', 'N/A'),
+                        'summary': entry.get('summary', 'N/A')[:300],
+                        'url': entry.get('link', ''),
+                        'published': entry.get('published', 'N/A'),
+                        'source': feed_url,
+                        'relevance_score': score
+                    })
             except Exception as e:
                 print(f"RSS取得エラー ({feed_url}): {e}")
+        
+        # スコアでソート
+        articles.sort(reverse=True, key=lambda x: x.get('relevance_score', 0))
         
         # 重複除去
         seen_titles = set()
@@ -76,14 +107,18 @@ class NewsSearchModule:
         for article in articles:
             if article['title'] not in seen_titles:
                 seen_titles.add(article['title'])
-                unique_articles.append(article)
+                # relevance_scoreは内部用なので削除
+                article_copy = {k: v for k, v in article.items() if k != 'relevance_score'}
+                unique_articles.append(article_copy)
+        
+        result = unique_articles[:config.max_news_results]
         
         # キャッシュに保存
         self.cache[keyword] = {
             'timestamp': datetime.now().isoformat(),
-            'data': unique_articles[:config.max_news_results]
+            'data': result
         }
         self._save_cache()
         
-        print(f"ニュース {len(unique_articles[:config.max_news_results])}件 取得完了")
-        return unique_articles[:config.max_news_results]
+        print(f"ニュース {len(result)}件 取得完了")
+        return result
