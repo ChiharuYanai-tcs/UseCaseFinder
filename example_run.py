@@ -12,62 +12,33 @@ from map_elites_algorithm.mutation import create_mutation_function
 from map_elites_algorithm.evaluation import create_evaluation_function
 
 
-# 初期ユースケースのサンプル
-INITIAL_USECASES = [
-    """# AI画像検査による製品外観検品の自動化
-
-## 背景・課題
-製造ラインでの製品外観検品は、現在人の目視に依存しており、検査員の疲労や習熟度によって検査精度にばらつきが生じている。特に微細な傷や色ムラの検出が困難で、不良品の見逃しや過検出が発生している。
-
-## 解決策
-ディープラーニングを用いた画像検査システムを導入し、製品の外観検査を自動化する。高解像度カメラで撮影した製品画像を、事前学習済みのCNNモデルで解析し、傷・汚れ・色ムラなどの不良を自動検出する。
-
-## 期待効果
-- 検査精度の向上：不良検出率を95%以上に向上
-- 検査時間の短縮：1製品あたりの検査時間を30秒から5秒に削減
-- 人的コストの削減：検査員を2名から1名に削減可能
-
-## 技術要素
-- 画像認識AI（CNN）
-- 高解像度産業用カメラ
-- エッジコンピューティング""",
-
-    """# 設備故障予知による予防保全の最適化
-
-## 背景・課題
-製造設備の突発的な故障により、生産ラインの停止が発生し、大きな損失が生じている。現在は定期メンテナンスを実施しているが、故障の予兆を事前に検知できていない。
-
-## 解決策
-センサーデータとAIを活用した予知保全システムを構築する。設備の振動・温度・電流値などをリアルタイムで収集し、機械学習モデルで異常の予兆を検知する。
-
-## 期待効果
-- 突発故障の削減：年間故障件数を50%削減
-- ダウンタイムの削減：計画外停止時間を70%削減
-- メンテナンスコストの最適化：過剰保全を防止し、コストを30%削減
-
-## 技術要素
-- IoTセンサー
-- 時系列データ解析
-- 異常検知AI（Isolation Forest、LSTM）""",
-
-    """# 需要予測AIによる生産計画の最適化
-
-## 背景・課題
-市場需要の変動が大きく、過剰在庫や欠品が頻繁に発生している。現在の生産計画は過去実績ベースで作成されており、市場トレンドや季節変動に対応できていない。
-
-## 解決策
-機械学習を用いた需要予測システムを導入し、過去の販売データ、季節要因、市場トレンドなどを分析して高精度な需要予測を実現する。予測結果に基づいて最適な生産計画を自動生成する。
-
-## 期待効果
-- 予測精度の向上：需要予測誤差を±10%以内に改善
-- 在庫削減：適正在庫レベルを維持し、在庫コストを20%削減
-- 欠品率の低減：欠品発生率を50%削減
-
-## 技術要素
-- 時系列予測モデル（ARIMA、Prophet）
-- 機械学習（Random Forest、XGBoost）
-- 最適化アルゴリズム"""
-]
+def load_initial_usecases(usecase_dir: Path) -> list[str]:
+    """
+    指定ディレクトリからマークダウンファイルを読み込み、初期ユースケースとして返す
+    
+    Args:
+        usecase_dir: ユースケースマークダウンファイルが格納されたディレクトリ
+        
+    Returns:
+        ユースケース文字列のリスト
+    """
+    if not usecase_dir.exists():
+        raise FileNotFoundError(f"Usecase directory not found: {usecase_dir}")
+    
+    usecases = []
+    md_files = sorted(usecase_dir.glob("*.md"))
+    
+    if not md_files:
+        raise ValueError(f"No markdown files found in: {usecase_dir}")
+    
+    for md_file in md_files:
+        with open(md_file, "r", encoding="utf-8") as f:
+            content = f.read().strip()
+            if content:
+                usecases.append(content)
+                print(f"  Loaded: {md_file.name}")
+    
+    return usecases
 
 
 def main():
@@ -85,6 +56,17 @@ def main():
     print("=" * 80)
     print("MAP-Elites Algorithm - Example Run (3 Generations)")
     print("=" * 80)
+    
+    # 初期ユースケースを読み込み
+    print("\nLoading initial usecases...")
+    usecase_dir = Path("./initial_usecases")
+    try:
+        initial_usecases = load_initial_usecases(usecase_dir)
+        print(f"Loaded {len(initial_usecases)} usecase(s)")
+    except (FileNotFoundError, ValueError) as e:
+        print(f"Error: {e}")
+        print(f"\nPlease create '{usecase_dir}' directory and add markdown files.")
+        return
     
     # 変異関数と評価関数を作成
     print("\nInitializing mutation and evaluation functions...")
@@ -119,7 +101,7 @@ def main():
     print("\n" + "=" * 80)
     print("Phase 1: Initializing Population")
     print("=" * 80)
-    map_elites.initialize_population(INITIAL_USECASES)
+    map_elites.initialize_population(initial_usecases)
     
     # テキストベースの可視化
     map_elites.visualize_archive()
