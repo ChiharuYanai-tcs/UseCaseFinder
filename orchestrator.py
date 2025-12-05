@@ -59,7 +59,38 @@ class UseCaseOrchestrator:
             f.write(result['analysis'])
             f.write(f"\n\n---\n\n")
             f.write(f"## 参考情報\n\n")
-            f.write(f"- 論文数: {result['papers_count']}件\n")
-            f.write(f"- ニュース記事数: {result['news_count']}件\n")
+            
+            # 論文リスト
+            f.write(f"### 関連論文 ({result['papers_count']}件)\n\n")
+            if result['papers']:
+                for paper in result['papers']:
+                    title = paper.get('title', 'N/A')
+                    url = paper.get('url', '')
+                    year = paper.get('year', 'N/A')
+                    citations = paper.get('citations', 0)
+                    
+                    if url:
+                        f.write(f"- [{title}]({url}) ({year}, 引用数: {citations})\n")
+                    else:
+                        f.write(f"- {title} ({year}, 引用数: {citations})\n")
+            else:
+                f.write("- 該当する論文が見つかりませんでした\n")
+            
+            f.write("\n")
+            
+            # ニュース記事リスト
+            f.write(f"### 関連ニュース記事 ({result['news_count']}件)\n\n")
+            if result['news']:
+                for article in result['news']:
+                    title = article.get('title', 'N/A')
+                    url = article.get('url', '')
+                    published = article.get('published', 'N/A')
+                    
+                    if url:
+                        f.write(f"- [{title}]({url}) ({published})\n")
+                    else:
+                        f.write(f"- {title} ({published})\n")
+            else:
+                f.write("- 該当するニュース記事が見つかりませんでした\n")
         
         print(f"\n結果を保存: {filepath}")
