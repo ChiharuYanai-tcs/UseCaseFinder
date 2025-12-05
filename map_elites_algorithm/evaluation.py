@@ -8,7 +8,59 @@ import anthropic
 from typing import Dict
 
 
+# 評価基準となる参照用ユースケース例
+REFERENCE_USECASE = """# 画像AIによる溶接部外観検査の自動化
+
+## 背景・課題
+製造ラインにおける溶接部の目視検査は、熟練検査員の経験と勘に依存しており、以下の課題がある：
+- 検査員の習熟に3-5年かかり、人材育成コストが高い
+- 疲労による見落としで不良品流出リスクがある（不良流出率：0.3%）
+- 24時間稼働ラインで3交代の人員確保が困難
+
+## 解決策
+ディープラーニングによる画像検査システムを導入し、溶接部の良否判定を自動化する：
+- 高解像度カメラで溶接部を撮影（1200万画素、0.1mm精度）
+- CNNモデルで欠陥パターンを学習（過去3年分・10万枚のデータセット使用）
+- 判定結果をMESに自動連携し、不良品を後工程に流さない
+
+## 期待効果
+- 検査精度の向上：不良流出率を0.3%から0.05%に削減
+- 検査時間の短縮：1個あたり30秒から3秒に削減（90%削減）
+- 人件費削減：年間検査員3名分の人件費約2,400万円を削減
+- 投資回収期間：約1.5年
+
+## 適用範囲・ステークホルダー
+- 対象：自動車部品製造ラインの溶接工程（月産5万個）
+- 関係部門：製造部、品質保証部、生産技術部、IT部門"""
+
+REFERENCE_EVALUATION = {
+    "score": 50,
+    "it_domain": 1,
+    "business_function": 6,
+    "evaluation_notes": {
+        "specificity_score": 43,
+        "feasibility_score": 42,
+        "specificity_reasoning": "課題が定量的に記述され、解決策の技術要素（CNN、画像精度）が具体的。効果も数値で明示されている。",
+        "feasibility_reasoning": "既存技術で実装可能。投資対効果が明確で、データセットも現実的。組織横断的な実行体制も示されている。",
+        "it_domain_reasoning": "溶接部の外観検査を画像AIで自動化するため、画像検査・外観検品に分類。",
+        "business_function_reasoning": "製造ラインの検査工程を対象とし、不良品流出防止が目的のため、品質管理・品質保証に分類。"
+    }
+}
+
+
 EVALUATION_PROMPT = """あなたは製造業のDXとビジネスプロセスに精通した評価者です。以下のユースケースを評価し、スコアと特徴量を決定してください。
+
+# 参照用ユースケース例（評価基準として利用）
+以下の例を基準として、評価対象のユースケースを相対的に評価してください。
+
+{reference_usecase}
+
+**参照例の評価結果：**
+- 完成度スコア：{reference_score}点
+- 具体性：{reference_specificity}点 - {reference_specificity_reasoning}
+- 実現可能性：{reference_feasibility}点 - {reference_feasibility_reasoning}
+
+---
 
 # 評価対象ユースケース
 {usecase}
@@ -106,8 +158,16 @@ class UsecaseEvaluator:
         Returns:
             評価結果の辞書 {score, it_domain, business_function, evaluation_notes}
         """
-        # プロンプトを構築
-        prompt = EVALUATION_PROMPT.format(usecase=usecase)
+        # プロンプトを構築（参照例を含める）
+        prompt = EVALUATION_PROMPT.format(
+            reference_usecase=REFERENCE_USECASE,
+            reference_score=REFERENCE_EVALUATION["score"],
+            reference_specificity=REFERENCE_EVALUATION["evaluation_notes"]["specificity_score"],
+            reference_feasibility=REFERENCE_EVALUATION["evaluation_notes"]["feasibility_score"],
+            reference_specificity_reasoning=REFERENCE_EVALUATION["evaluation_notes"]["specificity_reasoning"],
+            reference_feasibility_reasoning=REFERENCE_EVALUATION["evaluation_notes"]["feasibility_reasoning"],
+            usecase=usecase
+        )
         
         try:
             # Claude APIを呼び出し
